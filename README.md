@@ -1,58 +1,237 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# 🍽️ RestaurantOS API
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+> Sistema de gestión integral para restaurantes multi-sucursal con actualizaciones en tiempo real.
 
-## About Laravel
+API REST construida con **Laravel 11** que implementa un sistema completo de gestión para restaurantes con múltiples sucursales: desde la toma de pedidos hasta el control de stock, caja y reportes, con un Kitchen Display System en tiempo real vía WebSockets.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+🔗 **Frontend del proyecto:** [restaurant-app](https://github.com/Cjga7/restaurant-app)
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+---
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## ✨ Características principales
 
-## Learning Laravel
+- 🏢 **Multi-sucursal** — Cada empleado ve solo los datos de su sucursal automáticamente (Global Scope)
+- 🔐 **Autenticación robusta** — Laravel Sanctum + Spatie Permission con 5 roles y permisos granulares
+- 🍔 **Recetas inteligentes** — Cada producto del menú define ingredientes que se descuentan automáticamente del stock al cobrar
+- 💸 **Caja por cajero** — Cada cajero abre y cierra su propia sesión con cuadre automático
+- 📊 **Reportes en tiempo real** — KPIs, gráficos de ventas, productos top, performance por cajero
+- ⚡ **Kitchen Display System** — Los pedidos aparecen en la cocina al instante vía WebSockets
+- 🧾 **Tickets imprimibles** — Tickets de cocina y recibos de venta en formato 80mm para impresoras térmicas
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+---
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+## 🏗️ Arquitectura
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+El proyecto sigue el patrón **Controller → Service → Repository** en todos los módulos:
+HTTP Request
+↓
+Controller (validación + transformación HTTP)
+↓
+Service (lógica de negocio + transacciones)
+↓
+Repository (acceso a datos vía Eloquent)
+↓
+Database (MySQL)
 
-## Agentic Development
+### Decisiones de diseño clave
 
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+- **Empleados ≠ Usuarios** — Los empleados son del módulo de RRHH, mientras que los usuarios son las credenciales del sistema. Se vinculan opcionalmente.
+- **Caja por cajero** — Cada empleado abre y cierra su propia sesión, garantizando responsabilidad individual sobre el cuadre.
+- **Recetas con descuento al cobrar** — El stock se descuenta cuando el pedido pasa a `pagado`, no al enviarlo a cocina.
+- **Transferencias = 2 movimientos vinculados** — Una transferencia entre sucursales genera un movimiento de salida en origen + entrada en destino, en una transacción atómica.
+- **Reservas con flujo profesional** — Botón "Cliente llegó" que crea automáticamente un pedido vinculado a la mesa.
+
+---
+
+## 📦 Módulos implementados
+
+| Módulo | Endpoints | Características |
+|--------|-----------|----------------|
+| **Auth & Roles** | `/auth/*`, `/users/*`, `/roles` | Login con Sanctum, CRUD de usuarios, asignación de roles |
+| **Sucursales** | `/sucursales/*` | CRUD multi-sucursal con scope global |
+| **Menú** | `/menu/*`, `/productos/*`, `/recetas/*` | Categorías, productos con imágenes, recetas |
+| **Mesas** | `/mesas/*` | Estados (disponible/ocupada/reservada), QR único |
+| **Empleados** | `/empleados/*` | RRHH con vinculación opcional a usuarios |
+| **Reservas** | `/reservas/*` | Flujo: pendiente → confirmada → cliente llegó (crea pedido) |
+| **Pedidos** | `/pedidos/*`, `/pedidos/{id}/items/*` | State machine, número correlativo diario por sucursal |
+| **Inventario** | `/inventario/*` | Stock por sucursal, movimientos, transferencias |
+| **Caja/Pagos** | `/caja/*`, `/pagos/*` | Sesiones por cajero, métodos múltiples, cuadre automático |
+| **Reportes** | `/reportes/*` | Resumen, ventas por día, top productos, métodos de pago, cajeros, stock crítico |
+| **Real-time** | WebSockets | Kitchen Display vía Laravel Reverb |
+
+---
+
+## 🛠️ Stack técnico
+
+- **Framework:** Laravel 11
+- **PHP:** 8.3+
+- **Base de datos:** MySQL 8
+- **Autenticación:** Laravel Sanctum
+- **Autorización:** Spatie Laravel Permission
+- **WebSockets:** Laravel Reverb
+- **Storage:** Local con symlink para imágenes
+
+---
+
+## 🚀 Instalación
+
+### Requisitos previos
+
+- PHP 8.3+
+- Composer
+- MySQL 8+
+- Node.js 20+ (solo para Reverb)
+
+### Pasos
 
 ```bash
-composer require laravel/boost --dev
+# 1. Clonar el repositorio
+git clone https://github.com/Cjga7/restaurant-api-.git
+cd restaurant-api-
 
-php artisan boost:install
+# 2. Instalar dependencias de Composer
+composer install
+
+# 3. Copiar el archivo de entorno
+cp .env.example .env
+
+# 4. Generar la app key
+php artisan key:generate
+
+# 5. Configurar las variables del .env
+# - DB_DATABASE, DB_USERNAME, DB_PASSWORD
+# - REVERB_APP_ID, REVERB_APP_KEY, REVERB_APP_SECRET (cualquier string aleatorio)
+
+# 6. Ejecutar migraciones y seeders
+php artisan migrate --seed
+
+# 7. Crear el symlink de storage para imágenes
+php artisan storage:link
+
+# 8. Levantar el servidor
+php artisan serve
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+### Para WebSockets (en otra terminal)
 
-## Contributing
+```bash
+php artisan reverb:start
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+---
 
-## Code of Conduct
+## 🔑 Roles y permisos
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+El sistema viene con 5 roles preconfigurados:
 
-## Security Vulnerabilities
+| Rol | Acceso |
+|-----|--------|
+| **super_admin** | Todo el sistema, todas las sucursales |
+| **gerente_sucursal** | Administra su sucursal completa |
+| **cajero** | Procesa pagos y maneja la caja |
+| **mozo** | Toma pedidos y gestiona mesas |
+| **cocinero** | Ve pedidos en el Kitchen Display |
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+Los permisos están definidos en `database/seeders/RolePermissionSeeder.php` y son granulares por módulo (ej: `pedidos.ver`, `pedidos.crear`, `pedidos.gestionar`).
 
-## License
+---
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+## 📐 Estructura del proyecto
+app/
+├── Events/                  # Eventos broadcast (WebSockets)
+├── Http/
+│   └── Controllers/Api/     # Controllers REST
+├── Models/                  # Modelos Eloquent
+├── Repositories/            # Capa de acceso a datos
+├── Scopes/                  # Global scopes (ej: SucursalScope)
+└── Services/                # Lógica de negocio
+database/
+├── migrations/              # Migraciones de tablas
+└── seeders/                 # Seeders (roles, permisos)
+routes/
+├── api.php                  # Rutas de la API
+└── channels.php             # Canales de broadcasting
+
+---
+
+## 🔄 Flujos de negocio destacados
+
+### Flujo completo de una orden
+
+Mozo crea pedido → Mesa: ocupada
+Mozo agrega items → Pedido: abierto
+Mozo "envía a cocina" → Pedido: enviado
+→ 🔔 WebSocket notifica al KDS
+→ Cocinero ve el pedido al instante
+Cocinero "empieza a preparar" → Pedido: en_preparacion
+Cocinero "marca listo" → Pedido: listo
+Mozo entrega → Pedido: entregado
+Cajero cobra → Pedido: pagado
+→ Mesa: disponible
+→ Stock descontado según recetas
+→ Recibo impreso
+
+
+### Cobro de un pedido
+
+```php
+// Al cobrar, en una sola transacción:
+1. Se crea el registro de pago (vinculado a la sesión del cajero)
+2. Se cambia el estado del pedido a "pagado"
+3. Se descuenta el stock según las recetas del producto
+4. Se libera la mesa
+5. Se emite evento broadcast para sincronizar UIs
+```
+
+---
+
+## 📡 WebSockets en tiempo real
+
+El sistema usa **Laravel Reverb** para enviar actualizaciones en tiempo real al frontend. Cada vez que un pedido se crea, actualiza o cambia de estado, se emite un evento al canal de la sucursal correspondiente:
+
+```php
+// app/Events/PedidoActualizado.php
+broadcast(new PedidoActualizado($pedido, 'estado_cambiado'));
+// → Canal: pedidos.sucursal.{sucursal_id}
+// → Evento: pedido.actualizado
+```
+
+Esto permite que el Kitchen Display, la pantalla de mozos y la pantalla de caja se sincronicen sin recargar.
+
+---
+
+## 🧪 Testing manual con Postman
+
+Una vez instalado, podés probar los endpoints:
+
+```bash
+# 1. Login
+POST /api/auth/login
+{
+  "email": "admin@restaurant.test",
+  "password": "password"
+}
+
+# 2. Usar el token devuelto en el header
+Authorization: Bearer {tu_token}
+
+# 3. Probar endpoints
+GET /api/sucursales
+GET /api/menu/categorias
+GET /api/mesas
+# ... etc
+```
+
+---
+
+## 👨‍💻 Autor
+
+**Cristian Josue Garcia Alanis**
+
+- GitHub: [@Cjga7](https://github.com/Cjga7)
+
+---
+
+## 📄 Licencia
+
+Proyecto de portafolio de uso libre con fines educativos.
